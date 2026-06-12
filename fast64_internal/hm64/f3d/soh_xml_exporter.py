@@ -679,21 +679,16 @@ def _OOTSkeleton_toSohXML(self, modelDirPath, objectPath):
 
 # OOTLimb.toSohXML
 def _OOTLimb_toSohXML(self, isLOD, objectPath):
-    data = '<SkeletonLimb Version="0" Type="'
+    from ..z64.smooth_skin import smooth_skin_to_xml
 
-    if not isLOD:
-        data += 'Standard" '
-    else:
-        data += 'Lod" '
-
+    limbType = "Lod" if isLOD else "Standard"
     DLName = self.DL.name if self.DL is not None else "gEmptyDL"
-
     if DLName != "gEmptyDL":
         DLName = (objectPath + "/" if len(objectPath) > 0 else ">") + DLName
 
-    data += (
+    attrs = (
         'LegTransX="{legTransX}" LegTransY="{legTransY}" LegTransZ="{legTransZ}" '
-        'ChildIndex="{firstChildIndex}" SiblingIndex="{siblingIndex}" DisplayList1="{displayList1}"/>\n'
+        'ChildIndex="{firstChildIndex}" SiblingIndex="{siblingIndex}" DisplayList1="{displayList1}"'
     ).format(
         legTransX=int(round(self.translation[0])),
         legTransY=int(round(self.translation[1])),
@@ -702,6 +697,15 @@ def _OOTLimb_toSohXML(self, isLOD, objectPath):
         siblingIndex=self.nextSiblingIndex,
         displayList1=DLName,
     )
+
+    smooth_data = getattr(self, "smoothSkinData", None)
+
+    if smooth_data:
+        data = f'<SkeletonLimb Version="0" Type="{limbType}" {attrs}>\n'
+        data += smooth_skin_to_xml(smooth_data)
+        data += "</SkeletonLimb>\n"
+    else:
+        data = f'<SkeletonLimb Version="0" Type="{limbType}" {attrs}/>\n'
 
     return data
 

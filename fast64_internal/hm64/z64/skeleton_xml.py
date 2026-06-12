@@ -69,11 +69,22 @@ def ootConvertArmatureToXML(
     isCustomExport = True
 
     from ...z64.exporter.skeleton.functions import ootConvertArmatureToSkeletonWithMesh
+    from .smooth_skin import build_smooth_skin_data
 
     fModel = OOTModel(skeletonName, DLFormat, drawLayer)
     skeleton, fModel = ootConvertArmatureToSkeletonWithMesh(
         originalArmatureObj, convertTransformMatrix, fModel, skeletonName, not savePNG, drawLayer, False
     )
+
+    # Attach smooth skin data to each limb.
+    meshObjs = [obj for obj in originalArmatureObj.children if obj.type == "MESH"]
+    if meshObjs:
+        meshObj = meshObjs[0]
+        limbList = skeleton.createLimbList()
+        for limb in limbList:
+            limb.smoothSkinData = build_smooth_skin_data(
+                meshObj, originalArmatureObj, limb.boneName, convertTransformMatrix, limbList
+            )
 
     if originalArmatureObj.ootSkeleton.LOD is not None:
         lodSkeleton, fModel = ootConvertArmatureToSkeletonWithMesh(
