@@ -35,13 +35,26 @@ from ...f3d.f3d_gbi import (
     GfxList,
     SP1Triangle,
     SP2Triangles,
+    SPAlphaCompareCull,
+    SPAmbOcclusion,
+    SPAmbOcclusionAmb,
+    SPAmbOcclusionAmbDir,
+    SPAmbOcclusionDir,
+    SPAmbOcclusionDirPoint,
+    SPAmbOcclusionPoint,
+    SPAttrOffsetST,
+    SPAttrOffsetZ,
     SPBranchList,
     SPClearGeometryMode,
     SPCullDisplayList,
     SPDisplayList,
     SPEndDisplayList,
+    SPFresnel,
+    SPFresnelOffset,
+    SPFresnelScale,
     SPLoadGeometryMode,
     SPMatrix,
+    SPNormalsMode,
     SPSetGeometryMode,
     SPSetLights,
     SPSetOtherMode,
@@ -122,7 +135,7 @@ def _VtxList_to_soh_xml(self):
 
 # GfxList.to_soh_xml
 def _GfxList_to_soh_xml(self, modelDirPath, objectPath):
-    data = '<DisplayList Version="0">\n'
+    data = _dl_open_tag()
     for command in self.commands:
         if isinstance(command, (SPDisplayList, SPBranchList, SPVertex, DPSetTextureImage)):
             data += "\t" + command.to_soh_xml(objectPath) + "\n"
@@ -149,11 +162,7 @@ def _FModel_to_soh_xml(self, modelDirPath, objectPath, include_cull_vertices=Tru
                 combined_other_lines = other_lines
 
         if combined_call_lines or combined_other_lines:
-            data += (
-                '<DisplayList Version="0">\n'
-                + "".join(combined_call_lines + combined_other_lines)
-                + "</DisplayList>\n\n"
-            )
+            data += _dl_open_tag() + "".join(combined_call_lines + combined_other_lines) + "</DisplayList>\n\n"
     else:
         for mesh in self.meshes.values():
             data += mesh.to_soh_xml(modelDirPath, objectPath, include_cull_vertices)
@@ -399,7 +408,7 @@ def _FMesh_to_soh_xml(self, modelDirPath, objectPath, include_cull_vertices=True
         return ""
 
     call_lines, other_lines = self.get_soh_root_draw_lines(objectPath)
-    drawData = '<DisplayList Version="0">\n' + "".join(call_lines + other_lines) + "</DisplayList>\n\n"
+    drawData = _dl_open_tag() + "".join(call_lines + other_lines) + "</DisplayList>\n\n"
     writeXMLData(drawData, os.path.join(modelDirPath, self.draw.name))
     return drawData
 
@@ -706,6 +715,71 @@ def _OOTLimb_toSohXML(self, isLOD, objectPath):
     return data
 
 
+def _is_f3dex3() -> bool:
+    return getattr(bpy.context.scene, "f3d_type", None) == "F3DEX3"
+
+
+def _dl_open_tag() -> str:
+    if _is_f3dex3():
+        return '<DisplayList Version="0" Microcode="F3DEX3">\n'
+    return '<DisplayList Version="0">\n'
+
+
+# ---- F3DEX3-specific SP command serialisers ----
+
+
+def _SPAmbOcclusionAmb_to_soh_xml(self, objectPath=""):
+    return f'<AmbOcclusionAmb Value="{self.amb}"/>'
+
+
+def _SPAmbOcclusionDir_to_soh_xml(self, objectPath=""):
+    return f'<AmbOcclusionDir Value="{self.dir}"/>'
+
+
+def _SPAmbOcclusionPoint_to_soh_xml(self, objectPath=""):
+    return f'<AmbOcclusionPoint Value="{self.point}"/>'
+
+
+def _SPAmbOcclusionAmbDir_to_soh_xml(self, objectPath=""):
+    return f'<AmbOcclusionAmbDir Amb="{self.amb}" Dir="{self.dir}"/>'
+
+
+def _SPAmbOcclusionDirPoint_to_soh_xml(self, objectPath=""):
+    return f'<AmbOcclusionDirPoint Dir="{self.dir}" Point="{self.point}"/>'
+
+
+def _SPAmbOcclusion_to_soh_xml(self, objectPath=""):
+    return f'<AmbOcclusion Amb="{self.amb}" Dir="{self.dir}" Point="{self.point}"/>'
+
+
+def _SPFresnelScale_to_soh_xml(self, objectPath=""):
+    return f'<FresnelScale Value="{self.scale}"/>'
+
+
+def _SPFresnelOffset_to_soh_xml(self, objectPath=""):
+    return f'<FresnelOffset Value="{self.offset}"/>'
+
+
+def _SPFresnel_to_soh_xml(self, objectPath=""):
+    return f'<Fresnel Scale="{self.scale}" Offset="{self.offset}"/>'
+
+
+def _SPAttrOffsetST_to_soh_xml(self, objectPath=""):
+    return f'<AttrOffsetST S="{self.s}" T="{self.t}"/>'
+
+
+def _SPAttrOffsetZ_to_soh_xml(self, objectPath=""):
+    return f'<AttrOffsetZ Z="{self.z}"/>'
+
+
+def _SPAlphaCompareCull_to_soh_xml(self, objectPath=""):
+    return f'<AlphaCompareCull Mode="{self.mode}" Thresh="{self.thresh}"/>'
+
+
+def _SPNormalsMode_to_soh_xml(self, objectPath=""):
+    return f'<NormalsMode Mode="{self.mode}"/>'
+
+
 _PATCHES = {
     FSetTileSizeScrollField: {
         "to_soh_xml": _FSetTileSizeScrollField_to_soh_xml,
@@ -754,6 +828,45 @@ _PATCHES = {
     },
     SP2Triangles: {
         "to_soh_xml": _SP2Triangles_to_soh_xml,
+    },
+    SPAmbOcclusionAmb: {
+        "to_soh_xml": _SPAmbOcclusionAmb_to_soh_xml,
+    },
+    SPAmbOcclusionDir: {
+        "to_soh_xml": _SPAmbOcclusionDir_to_soh_xml,
+    },
+    SPAmbOcclusionPoint: {
+        "to_soh_xml": _SPAmbOcclusionPoint_to_soh_xml,
+    },
+    SPAmbOcclusionAmbDir: {
+        "to_soh_xml": _SPAmbOcclusionAmbDir_to_soh_xml,
+    },
+    SPAmbOcclusionDirPoint: {
+        "to_soh_xml": _SPAmbOcclusionDirPoint_to_soh_xml,
+    },
+    SPAmbOcclusion: {
+        "to_soh_xml": _SPAmbOcclusion_to_soh_xml,
+    },
+    SPFresnelScale: {
+        "to_soh_xml": _SPFresnelScale_to_soh_xml,
+    },
+    SPFresnelOffset: {
+        "to_soh_xml": _SPFresnelOffset_to_soh_xml,
+    },
+    SPFresnel: {
+        "to_soh_xml": _SPFresnel_to_soh_xml,
+    },
+    SPAttrOffsetST: {
+        "to_soh_xml": _SPAttrOffsetST_to_soh_xml,
+    },
+    SPAttrOffsetZ: {
+        "to_soh_xml": _SPAttrOffsetZ_to_soh_xml,
+    },
+    SPAlphaCompareCull: {
+        "to_soh_xml": _SPAlphaCompareCull_to_soh_xml,
+    },
+    SPNormalsMode: {
+        "to_soh_xml": _SPNormalsMode_to_soh_xml,
     },
     SPCullDisplayList: {
         "to_soh_xml": _SPCullDisplayList_to_soh_xml,
